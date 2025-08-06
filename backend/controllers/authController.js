@@ -1,8 +1,8 @@
 // backend/controllers/authController.js
 
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -15,7 +15,7 @@ exports.registerUser = async (req, res) => {
     // 2. Check if a user with this email already exists
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: "User already exists" });
     }
 
     // 3. If user doesn't exist, create a new user instance
@@ -35,6 +35,7 @@ exports.registerUser = async (req, res) => {
     // 6. Create a payload for our JWT
     const payload = {
       user: {
+        //user.id is a convenient virtual property provided by Mongoose that gives you the string version of the document's _id.
         id: user.id, // Mongoose uses 'id' as a virtual getter for '_id'
       },
     };
@@ -43,7 +44,7 @@ exports.registerUser = async (req, res) => {
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
-      { expiresIn: '30d' }, // The token will expire in 30 days
+      { expiresIn: "30d" }, // The token will expire in 30 days
       (err, token) => {
         if (err) throw err;
         res.status(201).json({ token }); // 201 means 'Created'
@@ -51,7 +52,7 @@ exports.registerUser = async (req, res) => {
     );
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).send("Server error");
   }
 };
 
@@ -67,7 +68,7 @@ exports.loginUser = async (req, res) => {
 
     if (!user) {
       // If no user is found, send an error
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     // 2. If user exists, compare the submitted password with the stored hash
@@ -75,7 +76,7 @@ exports.loginUser = async (req, res) => {
 
     if (!isMatch) {
       // If passwords don't match, send an error
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     // 3. If everything is correct, create and sign a JWT
@@ -88,7 +89,7 @@ exports.loginUser = async (req, res) => {
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
-      { expiresIn: '30d' },
+      { expiresIn: "30d" },
       (err, token) => {
         if (err) throw err;
         // Send the token to the client
@@ -97,7 +98,7 @@ exports.loginUser = async (req, res) => {
     );
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).send("Server error");
   }
 };
 
