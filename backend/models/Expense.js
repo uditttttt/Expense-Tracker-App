@@ -26,6 +26,8 @@ const ExpenseSchema = new mongoose.Schema({
   },
 });
 
+// The most important line: This compiles the schema into a model and exports it.
+// The error occurs if you accidentally wrote 'module.exports = ExpenseSchema;'
 module.exports = mongoose.model('Expense', ExpenseSchema);
 
 /*

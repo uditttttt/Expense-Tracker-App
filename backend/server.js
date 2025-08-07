@@ -22,6 +22,8 @@ app.get('/', (req, res) => {
 
 // Mount the authentication routes
 app.use('/api/auth', require('./routes/auth'));
+// Mount the expense routes
+app.use('/api/expenses', require('./routes/expenses'));
 
 // Start the server
 app.listen(PORT, () => {
