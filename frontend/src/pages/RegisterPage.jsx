@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+// 1. Import Link and useNavigate
+import { Link, useNavigate } from 'react-router-dom';
+// 2. Import our new api service
+import api from '../services/api';
+
 
 const RegisterPage = () => {
   // State to hold the form data
@@ -12,6 +16,9 @@ const RegisterPage = () => {
   // State to manage password visibility
   const [showPassword, setShowPassword] = useState(false);
 
+    // 3. Initialize the navigate function
+  const navigate = useNavigate();
+
   // Destructure for easier access in the form
   const { name, email, password } = formData;
 
@@ -23,12 +30,23 @@ const RegisterPage = () => {
     }));
   };
 
-  // Placeholder for form submission logic
-  const handleSubmit = (e) => {
-    e.preventDefault(); // Prevents the default browser refresh
-    console.log('Form data submitted:', formData);
-    // API call to register the user will go here
+  // 4. Replace the old handleSubmit with this new async version
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Send the form data to our backend's register endpoint
+      await api.post('/auth/register', formData);
+
+      // If successful, show a success message and redirect
+      alert('Registration successful! Please log in.');
+      navigate('/login');
+    } catch (error) {
+      // If the backend sends an error, display it
+      console.error('Registration failed:', error.response.data);
+      alert(error.response.data.message || 'Registration failed. Please try again.');
+    }
   };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100 sm:px-6 lg:px-8">
@@ -162,5 +180,20 @@ Tailwind CSS: The className attributes provide all the styling for a clean, mode
 Link: The <Link to="/login"> component from react-router-dom creates a seamless, client-side link to the login page.
 
 The ...prevState syntax is used to preserve all the other unchanged form fields while you update only the one that the user is currently typing in. Without it, every time you typed in the email field, the name and password fields would be erased.
+
+Code Breakdown:
+
+We import useNavigate from react-router-dom to allow us to programmatically redirect the user after a successful registration.
+
+We import our new api service.
+
+The handleSubmit function is now async because API calls are asynchronous.
+
+try...catch block: This is for handling the request.
+
+try: We call api.post('/auth/register', formData). axios automatically converts our formData state object into JSON for the request body. If the registration is successful, we show an alert and use Maps('/login') to send the user to the login page.
+
+catch: If our backend returns an error (like "User already exists"), axios will throw an error. We catch it here and display the specific error message from our backend (error.response.data.message) in an alert.
+
 
 */

@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import ProtectedRoute from './components/ProtectedRoute'; // Import the guard
+
 
 function App() {
   return (
@@ -12,8 +14,12 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           
-          {/* The Dashboard will be our home page */}
-          <Route path="/" element={<DashboardPage />} />
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            {/* The Dashboard will be our home page */}
+            <Route path="/" element={<DashboardPage />} />
+            {/* You can add more protected pages here in the future */}
+          </Route>
         </Routes>
       </div>
     </Router>
