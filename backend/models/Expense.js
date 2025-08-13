@@ -20,10 +20,10 @@ const ExpenseSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  date: {
+date: {
     type: Date,
-    required: true,
-  },
+    default: Date.now, // Use a default value instead of requiring it
+},
 });
 
 // The most important line: This compiles the schema into a model and exports it.

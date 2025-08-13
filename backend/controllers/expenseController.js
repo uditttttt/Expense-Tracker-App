@@ -6,26 +6,26 @@ const Expense = require('../models/Expense');
 // @route   POST /api/expenses
 // @access  Private
 exports.createExpense = async (req, res) => {
-  const { description, amount, category, date } = req.body;
+    const { description, amount, category } = req.body; // <-- Removed 'date'
 
-  if (!description || !amount || !category || !date) {
-    return res.status(400).json({ message: 'Please provide all required fields' });
-  }
+    if (!description || !amount || !category) { // <-- Removed '!date'
+        return res.status(400).json({ message: 'Please provide all required fields' });
+    }
 
-  try {
-    const expense = await Expense.create({
-      description,
-      amount,
-      category,
-      date,
-      user: req.user.id,
-    });
+    try {
+        const expense = await Expense.create({
+            description,
+            amount,
+            category,
+            // The date will be added by the model's default value
+            user: req.user.id,
+        });
 
-    res.status(201).json(expense);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
+        res.status(201).json(expense);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
 };
 
 // @desc    Get all expenses for the logged-in user
