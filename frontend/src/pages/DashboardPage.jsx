@@ -3,66 +3,93 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import ExpenseForm from '../components/ExpenseForm.jsx';
+import EditExpenseModal from '../components/EditExpenseModal.jsx';
+import Summary from '../components/Summary.jsx';
+import CategoryChart from '../components/CategoryChart.jsx'; // NEW: Import the chart
 
 const DashboardPage = () => {
     const [expenses, setExpenses] = useState([]);
+    const [summary, setSummary] = useState({ totalAmount: 0, count: 0 });
+    const [categorySummary, setCategorySummary] = useState([]); // NEW: State for chart data
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [expenseToEdit, setExpenseToEdit] = useState(null);
 
-    const fetchExpenses = async () => {
+    const fetchDashboardData = async () => {
+        setLoading(true);
         try {
             setError(null);
-            const { data } = await api.get('/expenses');
-            setExpenses(data);
+            const [expensesRes, summaryRes, categoryRes] = await Promise.all([
+                api.get('/expenses'),
+                api.get('/expenses/summary'),
+                api.get('/expenses/category-summary') // NEW: Fetch category data
+            ]);
+            setExpenses(expensesRes.data);
+            setSummary(summaryRes.data);
+            setCategorySummary(categoryRes.data); // NEW: Set chart data state
         } catch (error) {
-            console.error('Failed to fetch expenses', error);
-            setError('Could not load your expenses. Please try again later.');
+            console.error('Failed to fetch dashboard data', error);
+            setError('Could not load your dashboard data. Please try again later.');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchExpenses();
+        fetchDashboardData();
     }, []);
 
-    const handleExpenseAdded = () => {
-        fetchExpenses();
+    const handleExpenseChange = () => {
+        fetchDashboardData();
     };
 
-    // NEW: Function to handle deleting an expense
+    const handleOpenEditModal = (expense) => {
+        setExpenseToEdit(expense);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseEditModal = () => {
+        setIsModalOpen(false);
+        setExpenseToEdit(null);
+    };
+
     const handleDeleteExpense = async (expenseId) => {
-        // Ask for confirmation before deleting
         if (window.confirm('Are you sure you want to delete this expense?')) {
             try {
                 await api.delete(`/expenses/${expenseId}`);
-                
-                // For an instant UI update, we filter the deleted expense out of our state
-                // This is faster than re-fetching the entire list from the server
-                setExpenses(prevExpenses =>
-                    prevExpenses.filter(expense => expense._id !== expenseId)
-                );
+                fetchDashboardData();
             } catch (error) {
                 console.error('Failed to delete expense', error);
-                // Optionally, set an error message to display to the user
                 setError('Failed to delete expense. Please try again.');
             }
         }
     };
 
     if (loading) {
-        return <div className="text-center p-8">Loading expenses...</div>;
+        return <div className="text-center p-8">Loading dashboard...</div>;
     }
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Your Dashboard</h1>
             
-            <ExpenseForm onExpenseAdded={handleExpenseAdded} />
+            {/* UPDATED: Layout for Summary and Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+                <div className="lg:col-span-2">
+                    <Summary totalAmount={summary.totalAmount} count={summary.count} />
+                </div>
+                <div className="lg:col-span-3">
+                    <CategoryChart summaryData={categorySummary} />
+                </div>
+            </div>
 
+            <ExpenseForm onExpenseAdded={handleExpenseChange} />
+
+            {/* --- THIS ENTIRE BLOCK WAS MISSING AND IS NOW RESTORED --- */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-2xl font-bold text-gray-800">Your Expenses</h2>
-
+                
                 {error && <p className="mt-4 text-center text-red-500">{error}</p>}
 
                 {!error && expenses.length > 0 ? (
@@ -73,15 +100,22 @@ const DashboardPage = () => {
                                     <p className="font-semibold text-gray-800">{expense.description}</p>
                                     <p className="text-sm text-gray-500">{expense.category} - {new Date(expense.date).toLocaleDateString()}</p>
                                 </div>
-                                <div className="flex items-center space-x-4">
+                                <div className="flex items-center space-x-2">
                                     <p className="text-lg font-bold text-gray-900">${expense.amount.toFixed(2)}</p>
-                                    {/* UPDATED: Delete button added */}
+                                    <button
+                                        onClick={() => handleOpenEditModal(expense)}
+                                        className="text-blue-500 hover:text-blue-700 p-1 rounded-full"
+                                        aria-label="Edit expense"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" />
+                                        </svg>
+                                    </button>
                                     <button 
                                         onClick={() => handleDeleteExpense(expense._id)}
-                                        className="text-red-500 hover:text-red-700 p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                        className="text-red-500 hover:text-red-700 p-1 rounded-full"
                                         aria-label="Delete expense"
                                     >
-                                        {/* Simple SVG Trash Icon */}
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
@@ -94,12 +128,20 @@ const DashboardPage = () => {
                     !error && <p className="text-center text-gray-500 mt-4">You have no expenses yet. Add one to get started!</p>
                 )}
             </div>
+            {/* --- END OF RESTORED BLOCK --- */}
+            
+            {isModalOpen && (
+                <EditExpenseModal 
+                    expense={expenseToEdit}
+                    onClose={handleCloseEditModal}
+                    onExpenseUpdated={handleExpenseChange}
+                />
+            )}
         </div>
     );
 };
 
 export default DashboardPage;
-
 
 /*
 ## How the Corrected Code Works
