@@ -34,19 +34,67 @@ exports.createExpense = async (req, res) => {
 // @desc    Get all expenses for the logged-in user
 // @route   GET /api/expenses
 // @access  Private
-// Make sure this function is defined and exported correctly
+// In backend/controllers/expenseController.js
+
+// In backend/controllers/expenseController.js
+
+// Replace your existing getExpenses function with this one
 exports.getExpenses = async (req, res) => {
   try {
-    // Find all expenses in the database that have a 'user' field matching
-    // the logged-in user's ID. Sort them by date, newest first.
-    const expenses = await Expense.find({ user: req.user.id }).sort({
-      date: -1,
-    });
+    const { category, dateRange, sortBy } = req.query; // NEW: Destructure sortBy
+    
+    const matchQuery = { user: req.user.id };
+
+    if (category && category !== 'All') {
+      matchQuery.category = category;
+    }
+    
+    // ... (the date range logic remains exactly the same) ...
+    if (dateRange && dateRange !== 'all_time') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let startDate;
+      switch (dateRange) {
+        case 'this_month':
+          startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'last_month':
+          startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+          matchQuery.date = { $gte: startDate, $lte: endOfLastMonth };
+          break;
+        case 'this_year':
+          startDate = new Date(today.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+      if(dateRange !== 'last_month') {
+        matchQuery.date = { $gte: startDate };
+      }
+    }
+
+    // NEW: Logic to determine the sort order
+    let sortQuery = { date: -1 }; // Default: Newest first
+    switch (sortBy) {
+      case 'date_asc':
+        sortQuery = { date: 1 }; // Oldest first
+        break;
+      case 'amount_desc':
+        sortQuery = { amount: -1 }; // High to Low
+        break;
+      case 'amount_asc':
+        sortQuery = { amount: 1 }; // Low to High
+        break;
+    }
+
+    const expenses = await Expense.find(matchQuery).sort(sortQuery); // UPDATED: Use the dynamic sortQuery
 
     res.status(200).json(expenses);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
