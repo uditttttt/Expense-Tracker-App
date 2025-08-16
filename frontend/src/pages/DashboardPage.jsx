@@ -1,7 +1,8 @@
 // src/pages/DashboardPage.jsx
 
-import { useState, useEffect, useCallback } from "react"; // NEW: Import useCallback
+import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
+import toast from 'react-hot-toast'; // UPDATED: Import toast
 import ExpenseForm from "../components/ExpenseForm.jsx";
 import EditExpenseModal from "../components/EditExpenseModal.jsx";
 import Summary from "../components/Summary.jsx";
@@ -85,14 +86,19 @@ const DashboardPage = () => {
     setExpenseToEdit(null);
   };
 
+  // UPDATED: This function now uses toast notifications
   const handleDeleteExpense = async (expenseId) => {
     if (window.confirm("Are you sure you want to delete this expense?")) {
+      const loadingToast = toast.loading('Deleting expense...');
       try {
         await api.delete(`/expenses/${expenseId}`);
+        toast.success('Expense deleted!', { id: loadingToast });
         refreshDashboard();
       } catch (error) {
         console.error("Failed to delete expense", error);
-        setError("Failed to delete expense. Please try again.");
+        // UPDATED: Use toast for error instead of setError
+        const message = error.response?.data?.message || 'Failed to delete expense.';
+        toast.error(message, { id: loadingToast });
       }
     }
   };

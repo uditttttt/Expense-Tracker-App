@@ -1,28 +1,47 @@
+// src/App.jsx
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext'; // 1. Re-added AuthProvider
+import { Toaster } from 'react-hot-toast'; // 2. Import Toaster
+
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
-import ProtectedRoute from './components/ProtectedRoute'; // Import the guard
-import Layout from './components/Layout'; // Import the new Layout
-
-
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout'; 
 
 function App() {
   return (
     <Router>
-      {/* We removed the main div from here since the Layout handles it */}
-      <Routes>
-        {/* Public Routes remain outside the layout */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Protected Routes are now wrapped by the Layout */}
-        <Route element={<Layout />}>
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
+      {/* 3. Wrap the entire app in AuthProvider */}
+      <AuthProvider>
+        {/* 4. Add the Toaster component here, at the top level */}
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            success: { duration: 3000 },
+            error: { duration: 5000 },
+            style: {
+              fontSize: '16px',
+              maxWidth: '500px',
+              padding: '16px 24px',
+            },
+          }}
+        />
+
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          
+          {/* Protected Routes */}
+          <Route element={<Layout />}>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<DashboardPage />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }

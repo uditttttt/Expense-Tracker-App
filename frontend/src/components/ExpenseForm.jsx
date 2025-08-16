@@ -1,15 +1,16 @@
 // src/components/ExpenseForm.jsx
 
 import React, { useState } from "react";
-// NEW: Import our configured api service
 import api from "../services/api";
+import toast from 'react-hot-toast'; // UPDATED: Import toast for notifications
 
 const ExpenseForm = ({ onExpenseAdded }) => {
   // Component State (this part remains the same)
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Food");
-  const [error, setError] = useState(null);
+  // REMOVED: The local error state is no longer needed
+  // const [error, setError] = useState(null); 
   const [loading, setLoading] = useState(false);
 
   // We no longer need to get the token from context here,
@@ -17,24 +18,21 @@ const ExpenseForm = ({ onExpenseAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    // REMOVED: setError(null) is no longer needed
 
-    // --- Start of the corrected code to paste ---
-
-    // console.log('Submitting with values:', { description, amount }); // A useful debugging line
-
+    // UPDATED: Validation now uses toast.error for immediate feedback
     // 1. Validation Check: Ensures neither field is an empty string.
     if (!description || !amount) {
-      setError("Please fill out both description and amount.");
-      return;
+      return toast.error("Please fill out both description and amount.");
     }
     // 2. Positive Number Check: Ensures the amount is greater than zero.
     if (parseFloat(amount) <= 0) {
-      setError("Amount must be a positive number.");
-      return;
+      return toast.error("Amount must be a positive number.");
     }
 
     setLoading(true);
+    // UPDATED: Show a loading toast while the API call is in progress
+    const loadingToast = toast.loading('Adding expense...');
 
     try {
       await api.post("/expenses", {
@@ -42,6 +40,9 @@ const ExpenseForm = ({ onExpenseAdded }) => {
         amount: parseFloat(amount),
         category,
       });
+
+      // UPDATED: Show a success toast when the API call is successful
+      toast.success('Expense added successfully!', { id: loadingToast });
 
       // Clear form on success
       setDescription("");
@@ -54,10 +55,9 @@ const ExpenseForm = ({ onExpenseAdded }) => {
         onExpenseAdded();
       }
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Failed to add expense. Please try again."
-      );
+      // UPDATED: Show an error toast if the API call fails
+      const message = err.response?.data?.message || "Failed to add expense. Please try again.";
+      toast.error(message, { id: loadingToast });
     } finally {
       setLoading(false);
     }
@@ -68,9 +68,9 @@ const ExpenseForm = ({ onExpenseAdded }) => {
     <div className="bg-white p-6 rounded-lg shadow-md mb-8">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Add New Expense</h2>
       <form onSubmit={handleSubmit}>
-        {error && (
-          <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</p>
-        )}
+        
+        {/* REMOVED: The static red error box is no longer needed */}
+        {/* {error && ( <p>{error}</p> )} */}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">

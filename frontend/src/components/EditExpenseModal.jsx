@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import toast from 'react-hot-toast'; // UPDATED: Import toast
 
 const EditExpenseModal = ({ expense, onClose, onExpenseUpdated }) => {
     // State for the form fields
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('Food');
-    const [error, setError] = useState(null);
+    // REMOVED: The error state is no longer needed
+    // const [error, setError] = useState(null); 
     const [loading, setLoading] = useState(false);
 
     // This `useEffect` hook pre-fills the form when the component receives a new expense
@@ -20,10 +22,11 @@ const EditExpenseModal = ({ expense, onClose, onExpenseUpdated }) => {
         }
     }, [expense]);
 
+    // UPDATED: This function now uses toast notifications
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null);
         setLoading(true);
+        const loadingToast = toast.loading('Saving changes...');
 
         try {
             await api.put(`/expenses/${expense._id}`, {
@@ -31,10 +34,12 @@ const EditExpenseModal = ({ expense, onClose, onExpenseUpdated }) => {
                 amount: parseFloat(amount),
                 category,
             });
+            toast.success('Expense updated successfully!', { id: loadingToast });
             onExpenseUpdated(); // Notify parent to refresh the list
             onClose(); // Close the modal
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to update expense.');
+            const message = err.response?.data?.message || 'Failed to update expense.';
+            toast.error(message, { id: loadingToast });
         } finally {
             setLoading(false);
         }
@@ -50,8 +55,9 @@ const EditExpenseModal = ({ expense, onClose, onExpenseUpdated }) => {
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Edit Expense</h2>
                 <form onSubmit={handleSubmit}>
-                    {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</p>}
                     
+                    {/* REMOVED: The static red error box is no longer needed */}
+
                     <div className="mb-4">
                         <label htmlFor="edit-description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                         <input
