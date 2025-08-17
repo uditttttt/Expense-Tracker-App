@@ -41,36 +41,40 @@ exports.createExpense = async (req, res) => {
 // Replace your existing getExpenses function with this one
 exports.getExpenses = async (req, res) => {
   try {
-    const { category, dateRange, sortBy } = req.query; // NEW: Destructure sortBy
-    
+    const { category, dateRange, sortBy, page = 1, limit = 10 } = req.query;
+
     const matchQuery = { user: req.user.id };
 
-    if (category && category !== 'All') {
+    if (category && category !== "All") {
       matchQuery.category = category;
     }
-    
+
     // ... (the date range logic remains exactly the same) ...
-    if (dateRange && dateRange !== 'all_time') {
+    if (dateRange && dateRange !== "all_time") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       let startDate;
       switch (dateRange) {
-        case 'this_month':
+        case "this_month":
           startDate = new Date(today.getFullYear(), today.getMonth(), 1);
           break;
-        case 'last_month':
+        case "last_month":
           startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-          const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+          const endOfLastMonth = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            0
+          );
           matchQuery.date = { $gte: startDate, $lte: endOfLastMonth };
           break;
-        case 'this_year':
+        case "this_year":
           startDate = new Date(today.getFullYear(), 0, 1);
           break;
         default:
           startDate = new Date(0);
       }
-      if(dateRange !== 'last_month') {
+      if (dateRange !== "last_month") {
         matchQuery.date = { $gte: startDate };
       }
     }
@@ -78,23 +82,40 @@ exports.getExpenses = async (req, res) => {
     // NEW: Logic to determine the sort order
     let sortQuery = { date: -1 }; // Default: Newest first
     switch (sortBy) {
-      case 'date_asc':
+      case "date_asc":
         sortQuery = { date: 1 }; // Oldest first
         break;
-      case 'amount_desc':
+      case "amount_desc":
         sortQuery = { amount: -1 }; // High to Low
         break;
-      case 'amount_asc':
+      case "amount_asc":
         sortQuery = { amount: 1 }; // Low to High
         break;
     }
 
-    const expenses = await Expense.find(matchQuery).sort(sortQuery); // UPDATED: Use the dynamic sortQuery
+    // Convert page and limit to numbers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
 
-    res.status(200).json(expenses);
+    // Run two queries in parallel: one for the total count, one for the page data
+    const [totalExpenses, expenses] = await Promise.all([
+      Expense.countDocuments(matchQuery),
+      Expense.find(matchQuery).sort(sortQuery).limit(limitNum).skip(skip),
+    ]);
+
+    const totalPages = Math.ceil(totalExpenses / limitNum);
+
+    // Return a structured response with pagination data
+    res.status(200).json({
+      expenses,
+      page: pageNum,
+      totalPages,
+      totalExpenses,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -169,7 +190,6 @@ exports.getExpenseSummary = async (req, res) => {
     //A clever way to get the end of the month. It creates a date object for the very first moment of the next month (e.g., September 1, 2025, 00:00:00).
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
-
     //This is the command that starts the aggregation pipeline. Expense.aggregate() takes an array of "stages" that the data will pass through in order.
     const summary = await Expense.aggregate([
       {
@@ -180,7 +200,6 @@ exports.getExpenseSummary = async (req, res) => {
         },
       },
       {
-
         //This stage takes all the documents that passed the $match filter and groups them to perform calculations.
         $group: {
           _id: null, // Group all matched documents together
@@ -219,23 +238,24 @@ exports.getCategorySummary = async (req, res) => {
       },
       {
         $group: {
-          _id: '$category', // Group by the category field
-          totalAmount: { $sum: '$amount' }, // Sum amounts for each category
+          _id: "$category", // Group by the category field
+          totalAmount: { $sum: "$amount" }, // Sum amounts for each category
         },
       },
       {
-        $project: { // Reshape the output
+        $project: {
+          // Reshape the output
           _id: 0,
-          category: '$_id',
-          totalAmount: '$totalAmount'
-        }
-      }
+          category: "$_id",
+          totalAmount: "$totalAmount",
+        },
+      },
     ]);
 
     res.status(200).json(summary);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 

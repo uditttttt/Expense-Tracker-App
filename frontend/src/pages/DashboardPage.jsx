@@ -2,12 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
-import toast from 'react-hot-toast'; // UPDATED: Import toast
+import toast from "react-hot-toast";
 import ExpenseForm from "../components/ExpenseForm.jsx";
 import EditExpenseModal from "../components/EditExpenseModal.jsx";
 import Summary from "../components/Summary.jsx";
 import CategoryChart from "../components/CategoryChart.jsx";
 import FilterControls from "../components/FilterControls.jsx";
+import Pagination from "../components/Pagination.jsx"; // NEW: Import Pagination
+import Swal from "sweetalert2"; // NEW: Import SweetAlert2
+import withReactContent from "sweetalert2-react-content"; // NEW: Import the React wrapper
+
+const MySwal = withReactContent(Swal); // NEW: Create a React-compatible instance
 
 const DashboardPage = () => {
   const [expenses, setExpenses] = useState([]);
@@ -18,6 +23,12 @@ const DashboardPage = () => {
     category: "All",
     dateRange: "all_time",
     sortBy: "date_desc",
+    page: 1, // UPDATED: Added 'page' to the filters state
+  });
+  // NEW: State to hold pagination info from the API
+  const [pagination, setPagination] = useState({
+    page: 1,
+    totalPages: 1,
   });
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,13 +41,18 @@ const DashboardPage = () => {
       try {
         setError(null);
 
-        // UPDATED: The 'filters' state is passed as params to the expenses API call
+        // The 'filters' state is passed as params to the expenses API call
         const [expensesRes, summaryRes, categoryRes] = await Promise.all([
           api.get("/expenses", { params: filters }), // This now sends the filters to the backend
           api.get("/expenses/summary"),
           api.get("/expenses/category-summary"),
         ]);
-        setExpenses(expensesRes.data);
+
+        // UPDATED: Destructure the new response from the expenses API to get pagination info
+        const { expenses, page, totalPages } = expensesRes.data;
+        setExpenses(expenses);
+        setPagination({ page, totalPages }); // UPDATED: Set the pagination state
+
         setSummary(summaryRes.data);
         setCategorySummary(categoryRes.data);
       } catch (error) {
@@ -61,7 +77,12 @@ const DashboardPage = () => {
         api.get("/expenses/summary"),
         api.get("/expenses/category-summary"),
       ]);
-      setExpenses(expensesRes.data);
+
+      // UPDATED: Destructure and set state here as well
+      const { expenses, page, totalPages } = expensesRes.data;
+      setExpenses(expenses);
+      setPagination({ page, totalPages });
+
       setSummary(summaryRes.data);
       setCategorySummary(categoryRes.data);
     } catch (err) {
@@ -71,10 +92,17 @@ const DashboardPage = () => {
     }
   };
 
-  // UPDATED: Wrap the handler in useCallback to prevent re-creation on every render
+  // UPDATED: When other filters change, we reset the page back to 1
   const handleFilterChange = useCallback((newFilters) => {
-    setFilters(newFilters);
+    setFilters({ ...newFilters, page: 1 });
   }, []); // Empty dependency array means this function will never be re-created
+
+  // NEW: Handler for changing the page via the Pagination component
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= pagination.totalPages) {
+      setFilters((prevFilters) => ({ ...prevFilters, page: newPage }));
+    }
+  };
 
   const handleOpenEditModal = (expense) => {
     setExpenseToEdit(expense);
@@ -86,21 +114,39 @@ const DashboardPage = () => {
     setExpenseToEdit(null);
   };
 
-  // UPDATED: This function now uses toast notifications
-  const handleDeleteExpense = async (expenseId) => {
-    if (window.confirm("Are you sure you want to delete this expense?")) {
-      const loadingToast = toast.loading('Deleting expense...');
-      try {
-        await api.delete(`/expenses/${expenseId}`);
-        toast.success('Expense deleted!', { id: loadingToast });
-        refreshDashboard();
-      } catch (error) {
-        console.error("Failed to delete expense", error);
-        // UPDATED: Use toast for error instead of setError
-        const message = error.response?.data?.message || 'Failed to delete expense.';
-        toast.error(message, { id: loadingToast });
+  // UPDATED: This function now uses a SweetAlert2 confirmation dialog
+  const handleDeleteExpense = (expenseId) => {
+    MySwal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
+      background: "#fff", // Optional: for theme consistency
+      customClass: {
+        title: "text-gray-800",
+        popup: "rounded-lg",
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // If confirmed, proceed with the deletion logic
+        const executeDelete = async () => {
+          const loadingToast = toast.loading("Deleting expense...");
+          try {
+            await api.delete(`/expenses/${expenseId}`);
+            toast.success("Expense deleted!", { id: loadingToast });
+            refreshDashboard();
+          } catch (error) {
+            const message =
+              error.response?.data?.message || "Failed to delete expense.";
+            toast.error(message, { id: loadingToast });
+          }
+        };
+        executeDelete();
       }
-    }
+    });
   };
 
   if (loading) {
@@ -123,76 +169,84 @@ const DashboardPage = () => {
       <ExpenseForm onExpenseAdded={refreshDashboard} />
 
       <div className="mt-8">
-        {/* THIS IS THE ONLY LINE THAT CHANGES IN THIS FILE */}
+        {/* Your comment here is preserved */}
         <FilterControls filters={filters} onFilterChange={handleFilterChange} />
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-md mt-8">
         <h2 className="text-2xl font-bold text-gray-800">Your Expenses</h2>
         {!error && expenses.length > 0 ? (
-          <ul className="space-y-4 mt-4">
-            {expenses.map((expense) => (
-              <li
-                key={expense._id}
-                className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 transition"
-              >
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    {expense.description}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {expense.category} -{" "}
-                    {new Date(expense.date).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <p className="text-lg font-bold text-gray-900">
-                    ${expense.amount.toFixed(2)}
-                  </p>
-                  <button
-                    onClick={() => handleOpenEditModal(expense)}
-                    className="text-blue-500 hover:text-blue-700 p-1 rounded-full"
-                    aria-label="Edit expense"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+          <>
+            <ul className="space-y-4 mt-4">
+              {expenses.map((expense) => (
+                <li
+                  key={expense._id}
+                  className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 transition"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-800">
+                      {expense.description}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {expense.category} -{" "}
+                      {new Date(expense.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-lg font-bold text-gray-900">
+                      ${expense.amount.toFixed(2)}
+                    </p>
+                    <button
+                      onClick={() => handleOpenEditModal(expense)}
+                      className="text-blue-500 hover:text-blue-700 p-1 rounded-full"
+                      aria-label="Edit expense"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteExpense(expense._id)}
-                    className="text-red-500 hover:text-red-700 p-1 rounded-full"
-                    aria-label="Delete expense"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteExpense(expense._id)}
+                      className="text-red-500 hover:text-red-700 p-1 rounded-full"
+                      aria-label="Delete expense"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {/* NEW: Render the Pagination component below the list */}
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
+          </>
         ) : (
           !error && (
             <p className="text-center text-gray-500 mt-4">
