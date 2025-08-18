@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // The base URL of our backend API
-const API_URL = 'http://localhost:5000/api/';
+const API_URL = 'https://expense-tracker-app-backend-zd41.onrender.com/api/';
 
 // Create a pre-configured instance of axios
 const api = axios.create({
