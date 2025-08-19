@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// The base URL of our backend API
-const API_URL = 'https://expense-tracker-app-backend-zd41.onrender.com/api/';
+// This will automatically switch between your development and production URLs
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Create a pre-configured instance of axios
 const api = axios.create({
