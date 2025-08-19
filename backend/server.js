@@ -4,6 +4,8 @@ const express = require('express');
 const cors = require('cors'); // 1. Import the cors package
 require('dotenv').config();
 
+const budgetRoutes = require('./routes/budgetRoutes'); // 1. IMPORT the new routes
+
 const connectDB = require('./config/db');
 
 const app = express();
@@ -27,6 +29,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 // Mount the expense routes
 app.use('/api/expenses', require('./routes/expenses'));
+app.use('/api/budgets', budgetRoutes); // 2. USE the new routes
 
 // Start the server
 app.listen(PORT, () => {
