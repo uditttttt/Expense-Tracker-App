@@ -11,6 +11,7 @@ import FilterControls from "../components/FilterControls.jsx";
 import Pagination from "../components/Pagination.jsx"; // NEW: Import Pagination
 import Swal from "sweetalert2"; // NEW: Import SweetAlert2
 import withReactContent from "sweetalert2-react-content"; // NEW: Import the React wrapper
+import BudgetManager from "../components/BudgetManager.jsx"; // 1. IMPORT the new component
 
 const MySwal = withReactContent(Swal); // NEW: Create a React-compatible instance
 
@@ -167,6 +168,15 @@ const DashboardPage = () => {
       </div>
 
       <ExpenseForm onExpenseAdded={refreshDashboard} />
+
+      {/* 2. ADD the new BudgetManager component here */}
+      <div className="mt-8">
+        <BudgetManager />
+      </div>
+
+      <div className="mt-8">
+        <FilterControls filters={filters} onFilterChange={handleFilterChange} />
+      </div>
 
       <div className="mt-8">
         {/* Your comment here is preserved */}
