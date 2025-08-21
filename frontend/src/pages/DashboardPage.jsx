@@ -3,22 +3,24 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 import ExpenseForm from "../components/ExpenseForm.jsx";
 import EditExpenseModal from "../components/EditExpenseModal.jsx";
 import Summary from "../components/Summary.jsx";
 import CategoryChart from "../components/CategoryChart.jsx";
 import FilterControls from "../components/FilterControls.jsx";
-import Pagination from "../components/Pagination.jsx"; // NEW: Import Pagination
-import Swal from "sweetalert2"; // NEW: Import SweetAlert2
-import withReactContent from "sweetalert2-react-content"; // NEW: Import the React wrapper
-import BudgetManager from "../components/BudgetManager.jsx"; // 1. IMPORT the new component
+import Pagination from "../components/Pagination.jsx";
+import BudgetManager from "../components/BudgetManager.jsx";
+import BudgetProgress from "../components/BudgetProgress.jsx";
 
-const MySwal = withReactContent(Swal); // NEW: Create a React-compatible instance
+const MySwal = withReactContent(Swal);
 
 const DashboardPage = () => {
   const [expenses, setExpenses] = useState([]);
   const [summary, setSummary] = useState({ totalAmount: 0, count: 0 });
   const [categorySummary, setCategorySummary] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     category: "All",
@@ -35,63 +37,39 @@ const DashboardPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState(null);
 
-  // UPDATED: This useEffect hook will now re-run whenever the 'filters' state changes.
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      try {
-        setError(null);
-
-        // The 'filters' state is passed as params to the expenses API call
-        const [expensesRes, summaryRes, categoryRes] = await Promise.all([
-          api.get("/expenses", { params: filters }), // This now sends the filters to the backend
-          api.get("/expenses/summary"),
-          api.get("/expenses/category-summary"),
-        ]);
-
-        // UPDATED: Destructure the new response from the expenses API to get pagination info
-        const { expenses, page, totalPages } = expensesRes.data;
-        setExpenses(expenses);
-        setPagination({ page, totalPages }); // UPDATED: Set the pagination state
-
-        setSummary(summaryRes.data);
-        setCategorySummary(categoryRes.data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-        setError("Could not load your dashboard data. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, [filters]); // UPDATED: Dependency array now includes 'filters'
-
-  // This function can be used to trigger a manual refresh after add/edit/delete
-  const refreshDashboard = async () => {
-    // Just re-triggering the fetch logic
+  // REFACTORED: This is now the single function for all data fetching.
+  // It replaces both the old 'useEffect' logic and the old 'refreshDashboard' logic.
+  const refreshDashboard = useCallback(async () => {
     setLoading(true);
     try {
       setError(null);
-      const [expensesRes, summaryRes, categoryRes] = await Promise.all([
-        api.get("/expenses", { params: filters }),
-        api.get("/expenses/summary"),
-        api.get("/expenses/category-summary"),
-      ]);
+      // FIXED: This now correctly fetches all four data points, including budgets.
+      const [expensesRes, summaryRes, categoryRes, budgetsRes] =
+        await Promise.all([
+          api.get("/expenses", { params: filters }),
+          api.get("/expenses/summary"),
+          api.get("/expenses/category-summary"),
+          api.get("/budgets"),
+        ]);
 
-      // UPDATED: Destructure and set state here as well
       const { expenses, page, totalPages } = expensesRes.data;
       setExpenses(expenses);
       setPagination({ page, totalPages });
-
       setSummary(summaryRes.data);
       setCategorySummary(categoryRes.data);
+      setBudgets(budgetsRes.data);
     } catch (err) {
-      setError("Could not refresh data.");
+      setError("Could not load your dashboard data. Please try again later.");
+      console.error("Failed to fetch dashboard data", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  // REFACTORED: The useEffect hook is now much simpler and just calls the main refresh function.
+  useEffect(() => {
+    refreshDashboard();
+  }, [refreshDashboard]);
 
   // UPDATED: When other filters change, we reset the page back to 1
   const handleFilterChange = useCallback((newFilters) => {
@@ -167,19 +145,16 @@ const DashboardPage = () => {
         </div>
       </div>
 
+      {/* NEW: Render the BudgetProgress component */}
+      <BudgetProgress budgets={budgets} categorySpending={categorySummary} />
+
+      <div className="mt-8">
+        <BudgetManager onBudgetsUpdated={refreshDashboard} />
+      </div>
+
       <ExpenseForm onExpenseAdded={refreshDashboard} />
 
-      {/* 2. ADD the new BudgetManager component here */}
       <div className="mt-8">
-        <BudgetManager />
-      </div>
-
-      <div className="mt-8">
-        <FilterControls filters={filters} onFilterChange={handleFilterChange} />
-      </div>
-
-      <div className="mt-8">
-        {/* Your comment here is preserved */}
         <FilterControls filters={filters} onFilterChange={handleFilterChange} />
       </div>
 

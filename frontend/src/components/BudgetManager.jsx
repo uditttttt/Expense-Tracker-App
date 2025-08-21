@@ -4,35 +4,26 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-// A predefined list of categories that the user can set a budget for.
 const categories = [
-  "Food",
-  "Transport",
-  "Bills",
-  "Entertainment",
-  "Shopping",
-  "Other"
+  "Food", "Transport", "Bills", "Entertainment", "Shopping", "Other"
 ];
 
-const BudgetManager = () => {
-  // State to hold the budget data, structured as an object: { Food: 100, Transport: 50 }
+// UPDATED: The component now accepts an 'onBudgetsUpdated' prop
+const BudgetManager = ({ onBudgetsUpdated }) => {
   const [budgets, setBudgets] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // Get the current month in "YYYY-MM" format, which our backend expects
   const getCurrentMonth = () => {
     const today = new Date();
     const month = (today.getMonth() + 1).toString().padStart(2, '0');
     return `${today.getFullYear()}-${month}`;
   };
 
-  // Fetch existing budgets for the current month when the component mounts
   useEffect(() => {
     const fetchBudgets = async () => {
       setLoading(true);
       try {
         const { data } = await api.get('/budgets');
-        // Convert the array of budget objects from the API into our state shape
         const budgetsMap = data.reduce((acc, budget) => {
           acc[budget.category] = budget.limit;
           return acc;
@@ -45,11 +36,9 @@ const BudgetManager = () => {
         setLoading(false);
       }
     };
-
     fetchBudgets();
   }, []);
 
-  // Handle changes to any budget input field
   const handleBudgetChange = (category, value) => {
     setBudgets(prevBudgets => ({
       ...prevBudgets,
@@ -57,12 +46,10 @@ const BudgetManager = () => {
     }));
   };
 
-  // Handle saving all the budgets
   const handleSaveBudgets = async () => {
     const loadingToast = toast.loading('Saving budgets...');
     try {
       const currentMonth = getCurrentMonth();
-      // Create an array of promises for all the API calls
       const savePromises = categories.map(category => {
         const limit = parseFloat(budgets[category]) || 0;
         return api.post('/budgets', {
@@ -72,10 +59,14 @@ const BudgetManager = () => {
         });
       });
 
-      // Wait for all the save requests to complete
       await Promise.all(savePromises);
-
       toast.success('Budgets saved successfully!', { id: loadingToast });
+      
+      // NEW: Call the function from the parent to trigger a refresh
+      if (onBudgetsUpdated) {
+        onBudgetsUpdated();
+      }
+
     } catch (error) {
       toast.error('Failed to save budgets.', { id: loadingToast });
       console.error("Failed to save budgets", error);
@@ -301,6 +292,6 @@ savePromises = [
 ]
 You now have a complete "to-do list" of API calls ready to go.
 
-The very next line in your code, await Promise.all(savePromises);, is what acts as the "starting pistol." It takes this entire array of promises and tells the browser to execute all of them at the same time (in parallel), waiting only until the very last one has finished. This is much more efficient than sending them one by one.
+The very next line in your code, await Promise.all(savePromises);, is what acts as the "starting pistol." It takes this entire array of promises and tells the browser to execute all of them at the same time (in parallel), waiting only until the very last one has finished. This is much more efficient than sending them one by one.\\\\\\\\\\\\\\\\\\
 
 */
