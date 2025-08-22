@@ -58,7 +58,7 @@ const DashboardPage = () => {
       setSummary(summaryRes.data);
       setCategorySummary(categoryRes.data);
       setBudgets(budgetsRes.data);
-    } catch (err) {
+    } catch (err) { 
       setError("Could not load your dashboard data. Please try again later.");
       console.error("Failed to fetch dashboard data", err);
     } finally {
