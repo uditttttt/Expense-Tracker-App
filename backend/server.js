@@ -1,40 +1,101 @@
+// // backend/server.js
+
+// const express = require('express');
+// const cors = require('cors'); // 1. Import the cors package
+// require('dotenv').config();
+
+// const budgetRoutes = require('./routes/budgetRoutes'); // 1. IMPORT the new routes
+
+// const connectDB = require('./config/db');
+
+// const app = express();
+
+// app.use(cors()); // 2. Add the cors middleware HERE
+
+// connectDB(); // Call the function to connect to the database
+
+// // Middleware to parse JSON bodies
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: false }));
+
+// const PORT = process.env.PORT || 5000;
+
+// // A simple test route to make sure the server is working
+// app.get('/', (req, res) => {
+//   res.send('Expense Tracker API is running!');
+// });
+
+// // Mount the authentication routes
+// app.use('/api/auth', require('./routes/auth'));
+// // Mount the expense routes
+// app.use('/api/expenses', require('./routes/expenses'));
+// app.use('/api/budgets', budgetRoutes); // 2. USE the new routes
+
+// // Start the server
+// app.listen(PORT, () => {
+//   console.log(`Server is listening on port ${PORT}`);
+// });
+
+// ----------------------------------------------------------------------------------------------------------------------
+
+// Vercel Setup
+
 // backend/server.js
 
 const express = require('express');
-const cors = require('cors'); // 1. Import the cors package
+const cors = require('cors');
 require('dotenv').config();
 
-const budgetRoutes = require('./routes/budgetRoutes'); // 1. IMPORT the new routes
-
+const budgetRoutes = require('./routes/budgetRoutes');
 const connectDB = require('./config/db');
 
 const app = express();
 
-app.use(cors()); // 2. Add the cors middleware HERE
+// --- START OF NEW CORS CONFIGURATION ---
+// Define the list of allowed frontend URLs
+const allowedOrigins = [
+  'http://localhost:5173', // Your local frontend dev server (e.g., for React/Vite)
+  // Add your deployed Vercel frontend URL here once you have it
+  // e.g., 'https://your-frontend-project-name.vercel.app'
+  'https://expense-tracker-app-frontend-mvtn.onrender.com'
+];
 
-connectDB(); // Call the function to connect to the database
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+};
 
-// Middleware to parse JSON bodies
+app.use(cors(corsOptions)); // Use the new, more secure cors options
+// --- END OF NEW CORS CONFIGURATION ---
+
+connectDB();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 const PORT = process.env.PORT || 5000;
 
-// A simple test route to make sure the server is working
 app.get('/', (req, res) => {
   res.send('Expense Tracker API is running!');
 });
 
-// Mount the authentication routes
 app.use('/api/auth', require('./routes/auth'));
-// Mount the expense routes
 app.use('/api/expenses', require('./routes/expenses'));
-app.use('/api/budgets', budgetRoutes); // 2. USE the new routes
+app.use('/api/budgets', budgetRoutes);
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
 });
+
+// Add this line at the end of the file. It helps Vercel understand your app.
+module.exports = app;
 
 
 /*
